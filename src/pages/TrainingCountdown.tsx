@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 
 interface TrainingCountdownProps {
   onComplete: () => void;
@@ -7,13 +7,14 @@ interface TrainingCountdownProps {
 export const TrainingCountdown: React.FC<TrainingCountdownProps> = ({ onComplete }) => {
   const [count, setCount] = useState(3);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const hasInitializedRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countRef = useRef(3);
+  const onCompleteRef = useRef(onComplete);
 
-  // 同步 count 到 ref
+  // 保持 onComplete 引用最新
   useEffect(() => {
-    countRef.current = count;
-  }, [count]);
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   // 初始化 AudioContext
   useEffect(() => {
@@ -26,7 +27,7 @@ export const TrainingCountdown: React.FC<TrainingCountdownProps> = ({ onComplete
   }, []);
 
   // 播放滴答声
-  const playTick = () => {
+  const playTick = useCallback(() => {
     if (!audioCtxRef.current) return;
     try {
       const ctx = audioCtxRef.current;
@@ -46,10 +47,10 @@ export const TrainingCountdown: React.FC<TrainingCountdownProps> = ({ onComplete
     } catch {
       // ignore
     }
-  };
+  }, []);
 
   // 语音播报
-  const speakCount = (num: number) => {
+  const speakCount = useCallback((num: number) => {
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
       const text = num > 0 ? num.toString() : '开始';
@@ -59,34 +60,41 @@ export const TrainingCountdown: React.FC<TrainingCountdownProps> = ({ onComplete
       utterance.pitch = 1.1;
       speechSynthesis.speak(utterance);
     }
-  };
+  }, []);
 
+  // 倒计时核心逻辑 - 使用 ref 驱动，避免 speechSynthesis 阻塞 React 状态
   useEffect(() => {
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      // 初始化时播报 3，然后启动定时器
-      playTick();
-      speakCount(3);
-      // 不 return，让定时器正常启动
-    }
+    // 播报初始数字 3
+    playTick();
+    speakCount(3);
 
-    // 用 setInterval 替代 useEffect 依赖 count，避免 speechSynthesis 阻塞
-    const timer = setInterval(() => {
-      setCount((prev) => {
-        const next = prev - 1;
-        playTick();
-        speakCount(next);
-        
-        if (next <= 0) {
-          clearInterval(timer);
-          onComplete();
+    timerRef.current = setInterval(() => {
+      const next = countRef.current - 1;
+      countRef.current = next;
+      setCount(next);
+
+      playTick();
+      speakCount(next);
+
+      if (next <= 0) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
         }
-        return next;
-      });
+        // 延迟一小段时间让 "开始" 语音播完再跳转
+        setTimeout(() => {
+          onCompleteRef.current();
+        }, 600);
+      }
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [onComplete]);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [playTick, speakCount]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
