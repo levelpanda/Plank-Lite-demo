@@ -5,6 +5,7 @@ import { Pause, Play, Volume2, VolumeX, Square, X } from 'lucide-react';
 interface TrainingProgressProps {
   onComplete: (duration: number) => void;
   onCancel: () => void;
+  targetDuration?: number;
 }
 
 export const TrainingProgress: React.FC<TrainingProgressProps> = ({ onComplete, onCancel }) => {
