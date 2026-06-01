@@ -162,6 +162,18 @@ interface CustomTrainingModalProps {
 const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onStart }) => {
   const { currentConfig, updateTrainingConfig } = useAppStore();
 
+  // 限制值常量
+  const DURATION_MAX = 6000;
+  const SETS_MAX = 100;
+  const REST_MAX = 600;
+
+  // 处理输入，超出上限自动设为最大值
+  const clampValue = (value: number, min: number, max: number) => {
+    if (isNaN(value) || value < min) return min;
+    if (value > max) return max;
+    return value;
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div className="bg-white rounded-2xl max-w-md w-full">
@@ -181,10 +193,10 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
               <input
                 type="number"
                 value={currentConfig.duration}
-                onChange={(e) => updateTrainingConfig({ duration: parseInt(e.target.value) || 60 })}
+                onChange={(e) => updateTrainingConfig({ duration: clampValue(parseInt(e.target.value), 10, DURATION_MAX) })}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="10"
-                max="600"
+                max={DURATION_MAX}
               />
             </div>
 
@@ -195,10 +207,10 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
               <input
                 type="number"
                 value={currentConfig.sets}
-                onChange={(e) => updateTrainingConfig({ sets: parseInt(e.target.value) || 1 })}
+                onChange={(e) => updateTrainingConfig({ sets: clampValue(parseInt(e.target.value), 1, SETS_MAX) })}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="1"
-                max="100"
+                max={SETS_MAX}
               />
             </div>
 
@@ -209,10 +221,10 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
               <input
                 type="number"
                 value={currentConfig.restDuration}
-                onChange={(e) => updateTrainingConfig({ restDuration: parseInt(e.target.value) || 30 })}
+                onChange={(e) => updateTrainingConfig({ restDuration: clampValue(parseInt(e.target.value), 0, REST_MAX) })}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="0"
-                max="300"
+                max={REST_MAX}
               />
             </div>
           </div>
