@@ -43,7 +43,7 @@ const defaultSettings: UserSettings = {
 
 const defaultConfig: TrainingConfig = {
   duration: 60,
-  sets: 3,
+  sets: 2,
   restDuration: 30,
 };
 

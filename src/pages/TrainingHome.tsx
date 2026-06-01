@@ -167,12 +167,58 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
   const SETS_MAX = 100;
   const REST_MAX = 600;
 
-  // 处理输入，超出上限自动设为最大值
+  // 用本地 state 管理输入文本，支持空值
+  const [durationText, setDurationText] = useState(String(currentConfig.duration));
+  const [setsText, setSetsText] = useState(String(currentConfig.sets));
+  const [restText, setRestText] = useState(String(currentConfig.restDuration));
+
+  // 处理输入，超出上限自动设为最大值；为空时保持空字符串
   const clampValue = (value: number, min: number, max: number) => {
     if (isNaN(value) || value < min) return min;
     if (value > max) return max;
     return value;
   };
+
+  const handleDurationChange = (raw: string) => {
+    // 允许为空，空时按钮置灰
+    if (raw === '') {
+      setDurationText('');
+      return;
+    }
+    const num = parseInt(raw);
+    if (isNaN(num)) return;
+    const val = clampValue(num, 1, DURATION_MAX);
+    // 如果被修正了（如输入 0 → 变成 1），同步更新显示文本
+    setDurationText(String(val));
+    updateTrainingConfig({ duration: val });
+  };
+
+  const handleSetsChange = (raw: string) => {
+    if (raw === '') {
+      setSetsText('');
+      return;
+    }
+    const num = parseInt(raw);
+    if (isNaN(num)) return;
+    const val = clampValue(num, 1, SETS_MAX);
+    setSetsText(String(val));
+    updateTrainingConfig({ sets: val });
+  };
+
+  const handleRestChange = (raw: string) => {
+    if (raw === '') {
+      setRestText('');
+      return;
+    }
+    const num = parseInt(raw);
+    if (isNaN(num)) return;
+    const val = clampValue(num, 3, REST_MAX);
+    setRestText(String(val));
+    updateTrainingConfig({ restDuration: val });
+  };
+
+  // 任一字段为空时禁用按钮
+  const isAnyEmpty = durationText === '' || setsText === '' || restText === '';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
@@ -192,10 +238,10 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
               </label>
               <input
                 type="number"
-                value={currentConfig.duration}
-                onChange={(e) => updateTrainingConfig({ duration: clampValue(parseInt(e.target.value), 10, DURATION_MAX) })}
+                value={durationText}
+                onChange={(e) => handleDurationChange(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                min="10"
+                min="1"
                 max={DURATION_MAX}
               />
             </div>
@@ -206,8 +252,8 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
               </label>
               <input
                 type="number"
-                value={currentConfig.sets}
-                onChange={(e) => updateTrainingConfig({ sets: clampValue(parseInt(e.target.value), 1, SETS_MAX) })}
+                value={setsText}
+                onChange={(e) => handleSetsChange(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="1"
                 max={SETS_MAX}
@@ -220,10 +266,10 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
               </label>
               <input
                 type="number"
-                value={currentConfig.restDuration}
-                onChange={(e) => updateTrainingConfig({ restDuration: clampValue(parseInt(e.target.value), 0, REST_MAX) })}
+                value={restText}
+                onChange={(e) => handleRestChange(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                min="0"
+                min="3"
                 max={REST_MAX}
               />
             </div>
@@ -234,7 +280,12 @@ const CustomTrainingModal: React.FC<CustomTrainingModalProps> = ({ onClose, onSt
               onClose();
               onStart();
             }}
-            className="w-full mt-6 bg-blue-500 text-white py-4 rounded-xl font-semibold hover:bg-blue-600 transition"
+            disabled={isAnyEmpty}
+            className={`w-full mt-6 py-4 rounded-xl font-semibold transition ${
+              isAnyEmpty
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
           >
             开始训练
           </button>
