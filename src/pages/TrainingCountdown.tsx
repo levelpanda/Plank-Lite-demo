@@ -8,6 +8,12 @@ export const TrainingCountdown: React.FC<TrainingCountdownProps> = ({ onComplete
   const [count, setCount] = useState(3);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const hasInitializedRef = useRef(false);
+  const countRef = useRef(3);
+
+  // 同步 count 到 ref
+  useEffect(() => {
+    countRef.current = count;
+  }, [count]);
 
   // 初始化 AudioContext
   useEffect(() => {
@@ -24,6 +30,9 @@ export const TrainingCountdown: React.FC<TrainingCountdownProps> = ({ onComplete
     if (!audioCtxRef.current) return;
     try {
       const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -44,44 +53,40 @@ export const TrainingCountdown: React.FC<TrainingCountdownProps> = ({ onComplete
     if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
       const text = num > 0 ? num.toString() : '开始';
-      // 小延迟确保 speechSynthesis 能正常触发
-      setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'zh-CN';
-        utterance.rate = 0.9;
-        utterance.pitch = 1.1;
-        speechSynthesis.speak(utterance);
-      }, 50);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-CN';
+      utterance.rate = 0.9;
+      utterance.pitch = 1.1;
+      speechSynthesis.speak(utterance);
     }
   };
 
   useEffect(() => {
     if (!hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      // 初始化时播报 3
+      // 初始化时播报 3，然后启动定时器
       playTick();
-      speakCount(count);
-      return;
+      speakCount(3);
+      // 不 return，让定时器正常启动
     }
 
-    if (count <= 0) {
-      // 播放 GO 音效和语音
-      playTick();
-      speakCount(0);
-      onComplete();
-      return;
-    }
-
-    // 每次倒计时变化时播放滴答声和语音
-    playTick();
-    speakCount(count);
-
-    const timer = setTimeout(() => {
-      setCount(prev => prev - 1);
+    // 用 setInterval 替代 useEffect 依赖 count，避免 speechSynthesis 阻塞
+    const timer = setInterval(() => {
+      setCount((prev) => {
+        const next = prev - 1;
+        playTick();
+        speakCount(next);
+        
+        if (next <= 0) {
+          clearInterval(timer);
+          onComplete();
+        }
+        return next;
+      });
     }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [count, onComplete]);
+    return () => clearInterval(timer);
+  }, [onComplete]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
